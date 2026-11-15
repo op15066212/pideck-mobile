@@ -54,7 +54,36 @@ sealed interface TimelineItem {
  * 上游 webApi.ts 的 `chatMessagesToUiMessages` 把 `role == "tool"` 的条目折成工具卡，
  * 这里同构处理；`meta.args` 可能是字符串化的 JSON（工具入参），取不到就用原文。
  */
+/** 宿主内部记账用的 customType 前缀（桌面端同样不画成卡片）。 */
+internal val INTERNAL_CUSTOM_TYPE_PREFIXES = listOf("subagents:", "pi-deck-", "codemode-")
+
+/**
+ * 这条消息在手机上要不要画。
+ *
+ * 宿主会把 pi 的 `custom_message` / `custom` 条目投影成 `role="system"` 的消息（见
+ * `asar` 主进程 `projectEntryMessages` 附近）：`meta.type = "customMessage"` 的带一个
+ * `meta.display` 布尔，`display: false` 表示「这是塞给模型看的内部注入，不要画出来」——
+ * 桌面端就按这个字段过滤。**手机以前不看它**，于是目标模式的
+ * 「Continue the current goal. Rounds used: 0/32」和 guard-replay 包着的上一轮思考
+ * （`<think-replay>…</think-replay>`）整段铺在聊天流里，一次几百行。
+ *
+ * `meta.type = "customEntry"` 是扩展输出卡：桌面端只认扩展注册过 renderer 的类型，
+ * 内部前缀（`subagents:` / `pi-deck-` / `codemode-`）一律不画，这里照同一条规则。
+ */
+internal fun ChatMessage.isInternalOnlyMessage(): Boolean {
+    val meta = meta ?: return false
+    return when (meta.string("type")) {
+        "customMessage" -> meta.bool("display") != true
+        "customEntry" -> {
+            val customType = meta.string("customType").orEmpty()
+            customType.isBlank() || INTERNAL_CUSTOM_TYPE_PREFIXES.any { customType.startsWith(it) }
+        }
+        else -> false
+    }
+}
+
 fun List<ChatMessage>.toTimelineItems(): List<TimelineItem> = mapNotNull { message ->
+    if (message.isInternalOnlyMessage()) return@mapNotNull null
     when (message.role) {
         "tool" -> {
             val meta = message.meta

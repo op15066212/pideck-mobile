@@ -187,4 +187,45 @@ class TimelineTest {
         assertEquals("先说一句", body)
         assertEquals("还没写完的思考", thinking)
     }
+
+    @Test
+    fun `internal custom message with display false is dropped`() {
+        val json = """{"messages":[
+            {"id":"g1","role":"system","text":"Continue the current goal. Rounds used: 0/32",
+             "meta":{"type":"customMessage","customType":"pi-deck-goal-continue","display":false}},
+            {"id":"a1","role":"assistant","text":"好的"}],"total":2}"""
+        val page = PideckJson.decodeFromString(SessionMessagePage.serializer(), json)
+        val items = page.messages.toTimelineItems()
+        assertEquals(1, items.size)
+        assertEquals("msg-a1", items.single().key)
+    }
+
+    @Test
+    fun `custom message with display true is kept as text`() {
+        val json = """{"messages":[{"id":"g2","role":"system","text":"子代理跑完了",
+            "meta":{"type":"customMessage","customType":"subagent-done","display":true}}],"total":1}"""
+        val page = PideckJson.decodeFromString(SessionMessagePage.serializer(), json)
+        val item = page.messages.toTimelineItems().single() as TimelineItem.AssistantMessage
+        assertEquals("子代理跑完了", item.text)
+    }
+
+    @Test
+    fun `internal custom entry is dropped but extension output stays`() {
+        val json = """{"messages":[
+            {"id":"c1","role":"system","text":"snapshot",
+             "meta":{"type":"customEntry","customType":"pi-deck-plan"}},
+            {"id":"c2","role":"system","text":"扩展输出：已生成 3 个文件",
+             "meta":{"type":"customEntry","customType":"my-ext-report"}}],"total":2}"""
+        val page = PideckJson.decodeFromString(SessionMessagePage.serializer(), json)
+        val items = page.messages.toTimelineItems()
+        assertEquals(1, items.size)
+        assertEquals("msg-c2", items.single().key)
+    }
+
+    @Test
+    fun `plain system message stays visible`() {
+        val json = """{"messages":[{"id":"s1","role":"system","text":"重启了运行时"}],"total":1}"""
+        val page = PideckJson.decodeFromString(SessionMessagePage.serializer(), json)
+        assertEquals(1, page.messages.toTimelineItems().size)
+    }
 }

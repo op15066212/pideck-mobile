@@ -550,6 +550,11 @@ cd native && ./gradlew --offline -q :app:assembleRelease     # 产物 app/build/
   运行中的子代理只有锚点、完成才落记录 —— 要看新的就点工作区面板右上角的刷新。
   `toolUses` / `tokens` / `completedAt` 宿主经常不给，缺就整段不写，**别显示 `0 tok` / `0 秒` 占位**
   （`subagentDurationText` 有单测守着）。
+- **`meta.display == false` 的内部注入不画**（`data/Timeline.kt` 的 `isInternalOnlyMessage()`）：
+  宿主把 pi 的 `custom_message` 投影成 `role="system"` + `meta.type="customMessage"` + `meta.display`；
+  `display:false` 是「给模型看的内部上下文」（目标模式的 `Continue the current goal…`、guard-replay 的
+  `<think-replay>` 上一轮思考），桌面端不画。手机以前不看这个字段，一次几百行铺满聊天流。
+  `meta.type="customEntry"` 同理：内部前缀（`subagents:` / `pi-deck-` / `codemode-`）不画。
 - **正文里的思考标签要认全**（`native/app/src/main/java/dev/pideck/nativeapp/data/Timeline.kt` 的
   `splitThinking`）：`<thinking>`（pi）、`<think-replay>`（目标模式把上一轮思考回灌时用的包装，标签是英文）、
   `<think>`（DSH 一类）。**只有闭标签没有开标签时只去掉标签、内容留在正文** —— 反过来会把用户真正要看的

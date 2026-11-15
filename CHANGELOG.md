@@ -1,3 +1,19 @@
+## 0.5.62 — 2026-11-16
+
+**宿主塞给模型的内部注入，手机上不再当聊天内容画出来。**
+
+宿主把 pi 的 `custom_message` / `custom` 条目投影成 `role="system"` 的消息，`meta.type="customMessage"`
+带一个 `meta.display`：`display:false` 是「给模型看的内部上下文，别画」。桌面端按这个字段过滤，
+手机端从来没看它 —— 于是目标模式的 `Continue the current goal. Rounds used: 0/32`、
+guard-replay 包着的上一轮思考（`<think-replay>…</think-replay>`）整段铺在聊天流里，一次几百行。
+
+- `data/Timeline.kt` 新增 `ChatMessage.isInternalOnlyMessage()`：`customMessage` 只在
+  `meta.display == true` 时才画；`customEntry` 按桌面端同一条规则 —— 内部前缀
+  （`subagents:` / `pi-deck-` / `codemode-`）和没有 `customType` 的一律不画，其余扩展输出照常显示。
+- 普通的 `system` 消息（宿主自己写的「重启了运行时」这类）不受影响。
+- 单测 393 → 397（`TimelineTest` 4 条：display:false 丢弃 / display:true 保留 / customEntry 前缀 / 普通 system）。
+- 0.5.60 的 `<think-replay>` 拆分仍然保留：别的后端把思考拼进正文时还是要收进思考块。
+
 ## 0.5.61 — 2026-11-15
 
 **一个节点只留一张卡：思考收进卡头，正文就是卡的主体。**
