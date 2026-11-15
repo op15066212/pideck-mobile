@@ -142,4 +142,33 @@ class ChatRowsTest {
         assertTrue(rows.all { it is ChatRow.Single })
         assertEquals("a1", (rows[1] as ChatRow.Single).item.key)
     }
+
+    @Test
+    fun `收尾回答的思考并进过程组`() {
+        val rows = buildChatRows(
+            items = listOf(
+                step("a1", thinking = "第一步", tools = listOf(tool("read"))),
+                step("a2", thinking = "第二步", tools = listOf(tool("bash"))),
+                // 最终回答：既有思考也有正文
+                step("a3", text = "改好了", thinking = "第三步：总结"),
+            ),
+            live = null,
+        )
+        val group = rows.filterIsInstance<ChatRow.Process>().single()
+        assertEquals(3, group.steps.size)              // 两步 + 收尾那条挪进来的思考
+        assertEquals(3, group.thinkingCount)           // 三段思考全在组里
+        val last = rows.last()
+        assertEquals(true, last is ChatRow.Single)
+        val answer = (last as ChatRow.Single).item as TimelineItem.AssistantMessage
+        assertEquals("改好了", answer.text)
+        assertEquals(null, answer.thinking)            // 思考已经挪进组，不再重复一张卡
+    }
+
+    @Test
+    fun `单独一条带思考的回答不并进任何组`() {
+        val rows = buildChatRows(items = listOf(step("a1", text = "答", thinking = "想了想")), live = null)
+        assertEquals(1, rows.size)
+        val item = (rows.single() as ChatRow.Single).item as TimelineItem.AssistantMessage
+        assertEquals("想了想", item.thinking)
+    }
 }

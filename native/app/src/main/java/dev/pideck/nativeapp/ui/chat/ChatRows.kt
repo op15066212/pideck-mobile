@@ -79,7 +79,23 @@ fun buildChatRows(
         pending = ArrayList()
     }
 
-    for (item in all) {
+    for (raw in all) {
+        var item = raw
+        // 收尾的那条（有正文）如果还带着思考，把这段思考并进紧挨着的过程组：
+        // 桌面端同一个回合的思考全算在组里（组头「思考 ×4」），手机上最后一段会掉到组外，
+        // 变成组下面一张孤零零的「思考过程」卡。
+        val trailingThink = (item as? TimelineItem.AssistantMessage)
+            ?.takeIf { it.text.isNotBlank() && it.thinking?.isNotBlank() == true }
+        if (groupProcess && trailingThink != null && pending.isNotEmpty()) {
+            pending += trailingThink.copy(
+                key = trailingThink.key + "-think",
+                text = "",
+                tools = emptyList(),
+                errorText = null,
+                streaming = false,
+            )
+            item = trailingThink.copy(thinking = null)
+        }
         if (groupProcess && item is TimelineItem.AssistantMessage && item.text.isBlank() && !isOnlyError(item)) {
             // 思考与工具调用都算「过程」，一起折进组里；组内思考是展开显示的（见 ProcessGroupBlock），
             // 所以并进组不等于把内容藏起来。
