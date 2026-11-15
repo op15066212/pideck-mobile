@@ -14,7 +14,9 @@ guard-replay 包着的上一轮思考（`<think-replay>…</think-replay>`）整
 - 收尾那条回答如果也带思考，这段思考并进紧邻的过程组（`ui/chat/ChatRows.kt` 的 `buildChatRows`）：
   桌面端同一个回合的思考全算在组里（组头「思考 ×4」），手机上最后一段以前掉到组外，
   变成组下面一张孤零零的「思考过程」卡。组内条目的 key 用 `<msgKey>-think`，不会和原消息撞。
-- 单测 393 → 399（`TimelineTest` 4 条 + `ChatRowsTest` 2 条）。
+- 运行中那张「思考（进行中）」不再把整个回合的思考拼在一起：`ReplySnapshot.latestReasoning` 只取最近一段
+  （`data/ReplyMerger.kt`，`Timeline.kt` 的 live 行用它）。前面几段在过程组里已经各有一张卡。
+- 单测 393 → 400（`TimelineTest` 5 条 + `ChatRowsTest` 2 条）。
 - **0.5.61 的「一个节点只留一张卡」撤回了**：把思考折进正文卡头在实际会话里更难读（用户反馈「非常糟糕」），
   恢复成「思考卡 + 正文」两块，`ThinkingCard` 的点击仍然开浮窗。
 - 0.5.60 的 `<think-replay>` 拆分仍然保留：别的后端把思考拼进正文时还是要收进思考块。

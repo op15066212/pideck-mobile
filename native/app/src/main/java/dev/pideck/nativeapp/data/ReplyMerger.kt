@@ -39,6 +39,15 @@ data class ReplySnapshot(
 ) {
     val text: String get() = parts.filterIsInstance<ReplyPart.Text>().joinToString("") { it.text }
     val reasoning: String get() = parts.filterIsInstance<ReplyPart.Reasoning>().joinToString("\n\n") { it.text }
+
+    /**
+     * 最近一段思考，而不是整轮拼接。
+     *
+     * 一轮里常有好几段思考（每条 assistant 消息一段）。拼接后的 [reasoning] 会把前面几段再抄一遍，
+     * 运行中那张「思考（进行中）」卡于是把整个回合的思考堆在一起 —— 前面那几段在过程组里已经各有一张卡了。
+     */
+    val latestReasoning: String
+        get() = parts.filterIsInstance<ReplyPart.Reasoning>().lastOrNull()?.text.orEmpty()
     val tools: List<ReplyPart.Tool> get() = parts.filterIsInstance<ReplyPart.Tool>()
 }
 

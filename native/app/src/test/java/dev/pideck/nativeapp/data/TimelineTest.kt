@@ -96,6 +96,21 @@ class TimelineTest {
     }
 
     @Test
+    fun `live item only shows the latest thinking segment`() {
+        val merger = ReplyMerger(idFactory = { "live-2" })
+        merger.applyFrame(meta("""{"type":"reasoning-start"}""")!!)
+        merger.applyFrame(meta("""{"type":"reasoning-delta","delta":"第一段"}""")!!)
+        merger.applyFrame(meta("""{"type":"reasoning-end"}""")!!)
+        merger.applyFrame(meta("""{"type":"reasoning-start"}""")!!)
+        merger.applyFrame(meta("""{"type":"reasoning-delta","delta":"第二段"}""")!!)
+        val snapshot = merger.snapshot()!!
+        assertEquals(true, snapshot.reasoning.startsWith("第一段") && snapshot.reasoning.endsWith("第二段"))
+        assertEquals("第二段", snapshot.latestReasoning)
+        // 运行中那张卡只放最新一段，前面那段在过程组里已经各有一张卡
+        assertEquals("第二段", snapshot.toTimelineItem(streaming = true).thinking)
+    }
+
+    @Test
     fun `user images survive the mapping`() {
         val message = ChatMessage(
             id = "u-img",

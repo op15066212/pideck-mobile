@@ -149,7 +149,7 @@ fun ReplySnapshot.toTimelineItem(streaming: Boolean): TimelineItem.AssistantMess
         key = "live-$messageId",
         text = body,
         thinking = listOfNotNull(
-            reasoning.trim().takeIf { it.isNotBlank() },
+            latestReasoning.trim().takeIf { it.isNotBlank() },
             inlineThinking,
         ).distinct().joinToString("\n\n").ifBlank { null },
         tools = tools.map { tool ->
