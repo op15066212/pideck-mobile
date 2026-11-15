@@ -12,6 +12,8 @@ guard-replay 包着的上一轮思考（`<think-replay>…</think-replay>`）整
   （`subagents:` / `pi-deck-` / `codemode-`）和没有 `customType` 的一律不画，其余扩展输出照常显示。
 - 普通的 `system` 消息（宿主自己写的「重启了运行时」这类）不受影响。
 - 单测 393 → 397（`TimelineTest` 4 条：display:false 丢弃 / display:true 保留 / customEntry 前缀 / 普通 system）。
+- **0.5.61 的「一个节点只留一张卡」撤回了**：把思考折进正文卡头在实际会话里更难读（用户反馈「非常糟糕」），
+  恢复成「思考卡 + 正文」两块，`ThinkingCard` 的点击仍然开浮窗。
 - 0.5.60 的 `<think-replay>` 拆分仍然保留：别的后端把思考拼进正文时还是要收进思考块。
 
 ## 0.5.61 — 2026-11-15
