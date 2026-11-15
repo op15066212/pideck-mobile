@@ -143,6 +143,7 @@ import dev.pideck.nativeapp.data.defaultTranslateTarget
 import dev.pideck.nativeapp.data.TurnStats
 import dev.pideck.nativeapp.data.formatTurnStats
 import dev.pideck.nativeapp.data.TimelineItem
+import dev.pideck.nativeapp.data.splitGoalBanner
 import dev.pideck.nativeapp.data.Prefs
 import dev.pideck.nativeapp.data.ProcessActivity
 import dev.pideck.nativeapp.data.visibleMemberCount
@@ -1156,6 +1157,42 @@ private fun UserBubble(
     }
 }
 
+
+/**
+ * 目标模式的小横条（`[GOAL MODE ACTIVE] Round: 1/32` 这类）。
+ *
+ * 一句话、单行、等宽一点的字宽，左边一个点；不抢正文的版面，也不跟工具卡混淆。
+ */
+@Composable
+private fun GoalModeBanner(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)),
+            )
+            Spacer(Modifier.size(8.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun AssistantBlock(
@@ -1196,16 +1233,23 @@ private fun AssistantBlock(
             Spacer(Modifier.size(6.dp))
         }
 
-        if (item.text.isNotBlank()) {
+        // 目标模式那些「继续干、还剩几轮」的记账行收成一条小横条，别当正文段落铺开。
+        val (goalBanner, body) = remember(item.text) { splitGoalBanner(item.text) }
+        if (goalBanner != null) {
+            GoalModeBanner(goalBanner)
+            Spacer(Modifier.size(6.dp))
+        }
+
+        if (body.isNotBlank()) {
             // 几万字的一条回复一次性铺开会同时建出上百个 Text，滚动直接掉帧；
             // 收尾后先展示前 6000 字，要看全文点一下再展开。
-            val long = !item.streaming && item.text.length > LONG_TEXT_LIMIT
+            val long = !item.streaming && body.length > LONG_TEXT_LIMIT
             var expanded by remember(item.key) { mutableStateOf(false) }
-            val shown = if (long && !expanded) item.text.take(LONG_TEXT_LIMIT) else item.text
+            val shown = if (long && !expanded) body.take(LONG_TEXT_LIMIT) else body
             MarkdownText(markdown = shown, streaming = item.streaming)
             if (long && !expanded) {
                 TextButton(onClick = { expanded = true }) {
-                    Text("展开全文（共 ${item.text.length} 字）")
+                    Text("展开全文（共 ${body.length} 字）")
                 }
             }
         }

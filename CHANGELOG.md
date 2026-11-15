@@ -1,3 +1,17 @@
+## 0.5.60 — 2026-11-15
+
+**目标模式（goal mode）在手机上不再把「记账行」和「重放的思考」当正文铺开。**
+
+- 正文里的 `<think-replay>…</think-replay>`（宿主把上一轮思考回灌时用的包装，之前只在
+  `<thinking>` 上做过拆分）现在会被收进思考块：折叠时它跟着过程组一起收起，不再顶着标签糊在回复里。
+  孤立的 `</think-replay>` 只去掉标签、内容留在正文 —— 否则会把用户真正要看的那段吞进思考。
+  顺带认 `<think>…</think>`（DSH 一类后端）。
+- 目标模式每轮注入的 `Continue the current goal.` / `Rounds used: 0/32` /
+  `If done, write GOAL_COMPLETE.` / `[GOAL MODE ACTIVE] Round: 1/32` 收成**一条小横条**
+  （`data/GoalMarker.kt` + `GoalModeBanner`）：单行、淡底、左边一个点，超长省略。
+  只在整行命中时才摘，正文里顺口提到 "Round:" 的句子不动。
+- 单测 387 → 393（`GoalMarkerTest` 6 条 + `TimelineTest` 4 条）。
+
 ## 0.5.59 — 2026-11-12
 
 **工程收尾：取消语义、重连外壳、匿名运行时台账、草稿键。**

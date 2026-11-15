@@ -550,6 +550,13 @@ cd native && ./gradlew --offline -q :app:assembleRelease     # 产物 app/build/
   运行中的子代理只有锚点、完成才落记录 —— 要看新的就点工作区面板右上角的刷新。
   `toolUses` / `tokens` / `completedAt` 宿主经常不给，缺就整段不写，**别显示 `0 tok` / `0 秒` 占位**
   （`subagentDurationText` 有单测守着）。
+- **正文里的思考标签要认全**（`native/app/src/main/java/dev/pideck/nativeapp/data/Timeline.kt` 的
+  `splitThinking`）：`<thinking>`（pi）、`<think-replay>`（目标模式把上一轮思考回灌时用的包装，标签是英文）、
+  `<think>`（DSH 一类）。**只有闭标签没有开标签时只去掉标签、内容留在正文** —— 反过来会把用户真正要看的
+  那段整段吞进思考块（目标模式的 `</think-replay>` 尾巴上踩过）。未闭合的开标签按思考收。
+- **目标模式的记账行收成小横条**（`data/GoalMarker.kt` 的 `splitGoalBanner` + `GoalModeBanner`）：
+  `Continue the current goal.` / `Rounds used: 0/32` / `If done, write GOAL_COMPLETE…` /
+  `[GOAL MODE ACTIVE] Round: 1/32`。判定必须在**整行**上，正文里顺口提到 "Round:" 的句子不能摘。
 - **AI 提问卡可折叠**（`native/app/src/main/java/dev/pideck/nativeapp/ui/chat/AskCard.kt`）：
   标题栏整条就是折叠开关，默认展开、按 `requestId` 记忆；收起时右侧仍留一行题干（`maxLines = 1`），
   不做「有一张卡但不知道在问什么」。展开内容走 `AnimatedVisibility`，选项列仍是 `heightIn(max = 320.dp)` 内部滚动。

@@ -157,4 +157,34 @@ class TimelineTest {
         val item = page.messages.toTimelineItems().single() as TimelineItem.AssistantMessage
         assertEquals(1, item.tools.single().images.size)
     }
+
+    @Test
+    fun `think-replay wrapper becomes thinking`() {
+        val raw = "<think-replay>上一轮的思考</think-replay>\n\n正文在这里"
+        val (body, thinking) = splitThinking(raw)
+        assertEquals("正文在这里", body)
+        assertEquals("上一轮的思考", thinking)
+    }
+
+    @Test
+    fun `stray closing think-replay tag is dropped but body stays`() {
+        val raw = "命令：git commit 不带 -a 会只提交</think-replay>"
+        val (body, thinking) = splitThinking(raw)
+        assertEquals("命令：git commit 不带 -a 会只提交", body)
+        assertNull(thinking)
+    }
+
+    @Test
+    fun `shorter think tag works too`() {
+        val (body, thinking) = splitThinking("<think>想一下</think>答案是 42")
+        assertEquals("答案是 42", body)
+        assertEquals("想一下", thinking)
+    }
+
+    @Test
+    fun `unclosed think-replay keeps content as thinking`() {
+        val (body, thinking) = splitThinking("先说一句<THINK-REPLAY>还没写完的思考")
+        assertEquals("先说一句", body)
+        assertEquals("还没写完的思考", thinking)
+    }
 }

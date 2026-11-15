@@ -138,36 +138,79 @@ fun ReplySnapshot.toTimelineItem(streaming: Boolean): TimelineItem.AssistantMess
     )
 }
 
-private const val THINK_OPEN = "<thinking>"
-private const val THINK_CLOSE = "</thinking>"
+/**
+ * 后端把思考塞进正文时用的标签。
+ *
+ * - `<thinking>…</thinking>`：pi 自己
+ * - `<think-replay>…</think-replay>`：pi 的「思考重放」包装（目标模式/循环执行会把上一轮思考
+ *   连同正文一起回灌，标签是英文的，和后端内部的 replay 逻辑同名）
+ * - `<think>…</think>`：DSH 一类后端
+ *
+ * 只认成对出现的那几种；标签名大小写不敏感。
+ */
+private val THINK_TAGS = listOf(
+    "thinking" to "thinking",
+    "think-replay" to "think-replay",
+    "think" to "think",
+)
+
+private val THINK_TAG_PATTERN = Regex(
+    "<\\s*(/)?\\s*(" + THINK_TAGS.joinToString("|") { Regex.escape(it.first) } + ")\\s*>",
+    RegexOption.IGNORE_CASE,
+)
 
 /**
- * 把正文里的 `<thinking>…</thinking>` 段拆出来。
+ * 把正文里的思考标签段拆出来。
  *
- * 未闭合的（流式输出中途）也收：拿到一半的思考也比让它糊在正文里强。
- * 返回的正文会去掉标签与多余空行；没有标签时原样返回，不做任何裁剪。
+ * 规则：
+ * - 成对标签之间的内容算思考；
+ * - 只有开标签（流式输出到一半）也收，拿到一半的思考比让它糊在正文里强；
+ * - **只有闭标签**（上一段的开标签被截断/被后端吃掉）只把标签本身去掉，内容留在正文里 ——
+ *   否则会把用户真正想看的正文整段吞进思考块（目标模式的 `<think-replay>` 尾巴上踩过）。
+ * - 没有标签时原样返回，一个字都不动。
  */
 internal fun splitThinking(raw: String): Pair<String, String?> {
-    if (!raw.contains(THINK_OPEN) && !raw.contains(THINK_CLOSE)) return raw to null
+    if (!raw.contains('<')) return raw to null
+    val matches = THINK_TAG_PATTERN.findAll(raw).toList()
+    if (matches.isEmpty()) return raw to null
+
     val body = StringBuilder()
     val segments = mutableListOf<String>()
     var cursor = 0
-    while (cursor < raw.length) {
-        val start = raw.indexOf(THINK_OPEN, cursor)
-        if (start < 0) {
-            val rest = raw.substring(cursor)
-            if (rest.contains(THINK_CLOSE)) body.append(rest.replace(THINK_CLOSE, "")) else body.append(rest)
-            break
+    var open: MatchResult? = null
+
+    for (match in matches) {
+        val closing = match.groupValues[1] == "/"
+        if (!closing) {
+            // 上一次还没闭合就来了新的开标签：把已开的那段当思考收掉
+            if (open != null) {
+                body.append(raw.substring(cursor, open.range.first))
+                segments += raw.substring(open.range.last + 1, match.range.first)
+            } else {
+                body.append(raw.substring(cursor, match.range.first))
+                cursor = match.range.first
+            }
+            open = match
+            continue
         }
-        body.append(raw.substring(cursor, start))
-        val end = raw.indexOf(THINK_CLOSE, start + THINK_OPEN.length)
-        if (end < 0) {
-            segments += raw.substring(start + THINK_OPEN.length)
-            break
+        if (open == null) {
+            // 孤立的闭标签：只去掉标签，内容照旧留在正文
+            body.append(raw.substring(cursor, match.range.first))
+            cursor = match.range.last + 1
+            continue
         }
-        segments += raw.substring(start + THINK_OPEN.length, end)
-        cursor = end + THINK_CLOSE.length
+        segments += raw.substring(open.range.last + 1, match.range.first)
+        open = null
+        cursor = match.range.last + 1
     }
+
+    if (open != null) {
+        body.append(raw.substring(cursor, open.range.first))
+        segments += raw.substring(open.range.last + 1)
+    } else {
+        body.append(raw.substring(cursor))
+    }
+
     val cleanBody = body.toString().replace(Regex("\n{3,}"), "\n\n").trim()
     val cleanThinking = segments
         .map { it.replace(Regex("\n{3,}"), "\n\n").trim() }
