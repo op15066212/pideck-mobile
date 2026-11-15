@@ -1193,6 +1193,63 @@ private fun GoalModeBanner(text: String) {
     }
 }
 
+
+/**
+ * 卡片里的思考行。
+ *
+ * 默认收起（只一行「思考 · N 字」），点一下在卡内展开 —— 全屏/翻译仍然走右边那个按钮，
+ * 因为展开后的高度封在 260dp，长思考还是要浮窗里看。
+ */
+@Composable
+private fun ThinkingHeader(
+    text: String,
+    streaming: Boolean,
+    key: String,
+    onOpenFull: () -> Unit,
+) {
+    var open by remember(key) { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { open = !open },
+        ) {
+            Text(
+                text = if (streaming) "思考 · 进行中" else "思考 · ${text.length} 字",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            AppIconButton(
+                icon = Icons.Default.OpenInFull,
+                contentDescription = "浮窗查看思考",
+                onClick = onOpenFull,
+                size = 26,
+                container = Color.Transparent,
+            )
+            Icon(
+                imageVector = if (open) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (open) "收起思考" else "展开思考",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        AnimatedVisibility(visible = open) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .heightIn(max = 260.dp)
+                    .verticalScroll(rememberScrollState()),
+            )
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun AssistantBlock(
@@ -1210,24 +1267,6 @@ private fun AssistantBlock(
                 onLongClick = onLongPress,
             ),
     ) {
-        item.thinking?.let { thinking ->
-            ThinkingCard(
-                text = thinking,
-                streaming = item.streaming,
-                onOpen = {
-                    onOpenDetail(
-                        DetailContent(
-                            title = if (item.streaming) "思考过程（进行中）" else "思考过程",
-                            hint = "太长不想滚？长按选中一段就行；也可以直接复制全文，或让宿主翻一遍",
-                            text = thinking,
-                            translatable = true,
-                        ),
-                    )
-                },
-            )
-            Spacer(Modifier.size(8.dp))
-        }
-
         item.tools.forEach { tool ->
             ToolCard(tool, onOpen = { onOpenDetail(toolDetailOf(tool)) })
             Spacer(Modifier.size(6.dp))
@@ -1240,16 +1279,48 @@ private fun AssistantBlock(
             Spacer(Modifier.size(6.dp))
         }
 
-        if (body.isNotBlank()) {
-            // 几万字的一条回复一次性铺开会同时建出上百个 Text，滚动直接掉帧；
-            // 收尾后先展示前 6000 字，要看全文点一下再展开。
-            val long = !item.streaming && body.length > LONG_TEXT_LIMIT
-            var expanded by remember(item.key) { mutableStateOf(false) }
-            val shown = if (long && !expanded) body.take(LONG_TEXT_LIMIT) else body
-            MarkdownText(markdown = shown, streaming = item.streaming)
-            if (long && !expanded) {
-                TextButton(onClick = { expanded = true }) {
-                    Text("展开全文（共 ${body.length} 字）")
+        // 一个节点只留一张卡：思考收进卡头的「思考 · N 字」，点开在卡内展开，正文就是卡的主体。
+        // 以前是「思考卡」和正文一上一下两张，同一段内容被劈成两块，读起来像两条消息。
+        val thinking = item.thinking
+        if (thinking != null || body.isNotBlank()) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                    if (thinking != null) {
+                        ThinkingHeader(
+                            text = thinking,
+                            streaming = item.streaming,
+                            key = item.key,
+                            onOpenFull = {
+                                onOpenDetail(
+                                    DetailContent(
+                                        title = if (item.streaming) "思考过程（进行中）" else "思考过程",
+                                        hint = "太长不想滚？长按选中一段就行；也可以直接复制全文，或让宿主翻一遍",
+                                        text = thinking,
+                                        translatable = true,
+                                    ),
+                                )
+                            },
+                        )
+                        if (body.isNotBlank()) Spacer(Modifier.size(8.dp))
+                    }
+                    if (body.isNotBlank()) {
+                        // 几万字的一条回复一次性铺开会同时建出上百个 Text，滚动直接掉帧；
+                        // 收尾后先展示前 6000 字，要看全文点一下再展开。
+                        val long = !item.streaming && body.length > LONG_TEXT_LIMIT
+                        var expanded by remember(item.key) { mutableStateOf(false) }
+                        val shown = if (long && !expanded) body.take(LONG_TEXT_LIMIT) else body
+                        MarkdownText(markdown = shown, streaming = item.streaming)
+                        if (long && !expanded) {
+                            TextButton(onClick = { expanded = true }) {
+                                Text("展开全文（共 ${body.length} 字）")
+                            }
+                        }
+                    }
                 }
             }
         }
